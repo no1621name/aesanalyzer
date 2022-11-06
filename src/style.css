@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components{
+  .btn {
+    @apply rounded border border-gray-700 p-1.5 text-gray-700 hover:text-white hover:bg-gray-500 hover:border-gray-500 transition duration-300;
+  }
+  .btn.btn_danger{
+    @apply border-red-500 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-500;
+  }
+  .btn.btn_success{
+    @apply border-green-500 text-green-500 hover:text-white hover:bg-green-500 hover:border-green-500;
+  }
+  .btn.fullscreen__btn{
+    @apply absolute top-0 right-0 border-t-0 border-r-0 rounded-t-none rounded-r-none bg-white border-t-black border-r-black z-[1];
+  }
+
+  .btn:disabled{
+    @apply text-gray-500 border-gray-500 hover:border-gray-500 hover:bg-white hover:text-gray-500;
+  }
+
+  .btn.fullscreen__btn img{
+    width: 14px;
+    @apply relative z-[-1];
+  }
+}
+
+
+input, textarea {
+  @apply rounded border border-gray-700 my-1 p-1;
+}
+
+input:disabled{
+  @apply text-gray-500;
+}
+
+.fullscreen{
+  width: 100% !important;
+  height: 100vh !important;
+  @apply absolute top-0 left-0 m-0 bg-white z-10 border-0;
+}
+
+:-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+textarea{
+  @apply max-h-[200px];
+}
