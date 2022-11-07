@@ -13,6 +13,7 @@
     :disabled="disabled"
   >
     <template #default>
+      <!-- remove. build by I0/Ii -->
       <SelectedInput
         first-type="default"
         second-type="logarithm"
@@ -20,29 +21,29 @@
       >
         <template #first>
           <input
+            v-model.number="coef"
             type="number"
             placeholder="Molar extinction coefficient [l/(mol*cm)]"
             :disabled="hasSent"
-            v-model.number="coef"
-            required
+            min="0"
           >
         </template>
         <template #second>
           <input
+            v-model.number="coef"
             type="number"
             placeholder="log10 Molar extinction coefficient [l/(mol*cm)]"
             :disabled="hasSent"
-            v-model.number="coef"
-            required
+            min="0"
           >
         </template>
       </SelectedInput>
       <input
+        v-model.number="thickness"
         type="number"
         placeholder="Cuvette thickness [cm]"
         :disabled="hasSent"
-        v-model.number="thickness"
-        required
+        min="0"
       >
     </template>
   </DefaultPreset>

@@ -1,4 +1,12 @@
-export default (unp: string): ChartInfo => {
+import { ChartData } from 'chart.js';
+
+export const getRandomColor = () => `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+
+export const getChartIndexByName = (chartData: ChartData, name: string) => {
+  return chartData.datasets.findIndex(({label}) => label?.includes(name));
+};
+
+export const parser = (unp: string): ChartInfo => {
   const chartData: Coordinates[] = unp.trim().split('\n')
     .map<Coordinates>((subS: string) => subS.split(' ')
       .reduce((obj: Coordinates, curr: string, currInd: number) => {

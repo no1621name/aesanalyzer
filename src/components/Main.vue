@@ -1,10 +1,11 @@
 <template>
   <div class="h-screen flex flex-row flex-wrap items-start justify-around p-4">
     <div class="w-full md:w-1/3">
+      <h1 class="fs-">AESanalyzer</h1>
       <label for="selectChartFormPreset">
         Select chart preset:
         <select id="selectChartFormPreset" v-model="selectedPreset" @change="clear">
-          <option value="abs">Absorbance</option>
+          <option value="abs">Absorbance/Emission</option>
           <option value="default" selected>Default</option>
         </select>
       </label>
@@ -14,34 +15,32 @@
     <div class="flex flex-col justify-between items-center w-full h-screen mt-4 md:mt-0 md:w-5/12 md:h-full">
       <div class="w-full">
         <LineChart
-          :data="mainChartData"
-          :y-name="mainChartYName"
-          :options="mainChartOptions"
+          :data="chartsData.mainChart.data"
+          :options="chartsData.mainChart.options"
         />
         <LineChart
-          v-if="selectedPreset !==  'default' && additionalChartData.datasets[0].data.length"
+          v-if="selectedPreset !== 'default' && chartsData.additionalChart.data.datasets[0].data.length"
           class="mt-3"
-          :data="additionalChartData"
-          :y-name="additionalChartYName"
-          :options="additionalChartOptions"
+          :data="chartsData.additionalChart.data"
+          :options="chartsData.additionalChart.options"
         />
         <Btn
           class="block mt-3 mx-auto"
           variant="success"
-          :disabled="!mainChartData.datasets.length"
+          :disabled="!chartsData.mainChart.data.datasets.length"
           @click="download"
-        >Download chart as PDF</Btn>
+        >
+          Download chart as PDF
+        </Btn>
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
-import { ChartData } from 'chart.js';
-import parser from '../utils/parser';
-import getChartIndexByName from '../utils/getChartIndexByName';
+import { ComponentCustomProps, reactive, ref } from 'vue';
 import { jsPDF } from 'jspdf';
+import { parser, getChartIndexByName, getRandomColor } from '../utils';
 
 import Btn from './UI/Btn.vue';
 import DefaultPreset from './PresetsForms/Default.vue';
@@ -50,82 +49,118 @@ import LineChart from './Charts/LineChart.vue';
 import LinesList from './LinesList.vue';
 
 const selectedPreset = ref<Preset>('default');
-const presets: Record<Preset, any> = {
+const presets: Record<Preset, ComponentCustomProps> = {
   default: DefaultPreset,
   abs: AbsPreset
 };
 
-const mainChartData = ref<ChartData<'line'>>({
-  datasets: []
-});
-const mainChartOptions = ref({
-  scales: { x: { min: 0 }, y: { min: 0 } }
-});
-const linesList = ref<LinesListItem[]>([]);
-const mainChartYName = ref('');
-const firstMax = ref(0);
-
-const additionalChartData = ref<ChartData<'line'>>({
-  labels: [],
-  datasets: [{
-    data: [],
-    borderColor: `#${Math.floor(Math.random() * 16777215).toString(16)}`
-  }],
-});
-const additionalChartOptions = ref({
-  scales: {
-    x: {
-      type: 'category',
-      title: {
-        text: ''
-      }
+const chartsData = reactive<ChartsData>({
+  mainChart: {
+    data: {
+      labels: [],
+      datasets: []
     },
-    y: {
-      min: 0,
-      title: {
-        text: 'y',
+    options: {
+      scales: {
+        x: {
+          min: 0,
+          title: {
+            text: 'Wavelength',
+          }
+        },
+        y: {
+          min: 0,
+          title: {
+            text: 'y',
+          }
+        }
       },
-    }
-  },
-  pointRadius: 3,
-  plugins: {
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      usePointStyle: true,
-      callbacks: {
-        label: function(context: any) {
-          return `${context.parsed.y}`;
+      plugins: {
+        tooltip: {
+          usePointStyle: true,
+          callbacks: {
+            label: (context: { dataset: { label: string }, parsed: { y: number, x: number } }) => {
+              return `${context.dataset.label.split(' ')[0]}: ${context.parsed.x}, ${context.parsed.y}`;
+            }
+          }
         }
       }
     }
   },
+  additionalChart: {
+    data: {
+      labels: [],
+      datasets: [
+        {
+          data: [],
+          borderColor: getRandomColor()
+        }
+      ],
+    },
+    options: {
+      pointRadius: 3,
+      scales: {
+        x: {
+          type: 'category',
+          title: {
+            text: ''
+          }
+        },
+        y: {
+          min: 0,
+          title: {
+            text: 'y',
+          },
+        }
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          usePointStyle: true,
+          callbacks: {
+            label: (context: { parsed: { y: number } }) => {
+              return `${context.parsed.y}`;
+            }
+          }
+        }
+      },
+    },
+  },
 });
-const additionalChartYName = ref('');
+
+const linesList = ref<LinesListItem[]>([]);
+const firstMax = ref(0);
 
 const presetsExecuters: PresetsExecuters = {
-  default: () => ({
-    val: 0,
-    text: ''
-  }),
+  default: (_: ChartInfo, name: string) => {
+    linesList.value.push({
+      name,
+    });
+  },
   abs: (info: ChartInfo, name: string, datasetIndex: number, e: number, eInpType: string, b: number) => {
-    const conc =  +(info.y.max / ((eInpType === 'default' ? e : 10**e)  * b)).toFixed(10);
+    const lineItem: LinesListItem = { name };
+    let xAxisName = '';
+
+    if(e && b) {
+      lineItem.additional = `C = ${+(info.y.max / ((eInpType === 'default' ? e : 10**e)  * b)).toFixed(10)}`;
+      xAxisName = 'Concentration';
+    }
+
     const ratio = firstMax.value/info.y.max;
 
     if(datasetIndex) {
       //chartjs bug
-      additionalChartData.value.labels = [...(additionalChartData.value.labels || []), name];
-      additionalChartData.value.datasets[0].data = [...additionalChartData.value.datasets[0].data, ratio];
+      chartsData.additionalChart.data.labels = [...(chartsData.additionalChart.data.labels || []), name];
+      chartsData.additionalChart.data.datasets[0].data = [...chartsData.additionalChart.data.datasets[0].data, ratio];
     } else {
-      additionalChartOptions.value.scales.y.title.text = 'Ⅰ0/Ⅰi';
-      additionalChartOptions.value.scales.x.title.text = 'Concentration';
+      // chartjs' types are a little um.. special~
+      chartsData.additionalChart.options.scales!.x!.title!.text = xAxisName;
+      chartsData.additionalChart.options.scales!.y!.title!.text = 'Ⅰ0/Ⅰi';
     }
 
-    return {
-      val: conc,
-      text: `C = ${conc}`
-    };
+    linesList.value.push(lineItem);
   },
 };
 
@@ -136,9 +171,9 @@ const parseFormData = (formData: ChartFormData) => {
 
   formData.unparsedData.forEach((unp: string) => {
     const parsedData = parser(unp);
-    const name = `Ⅰ${mainChartData.value.datasets.length}`;
+    const name = `Ⅰ${chartsData.mainChart.data.datasets.length}`;
 
-    const datasetIndex = mainChartData.value.datasets.push({
+    const datasetIndex = chartsData.mainChart.data.datasets.push({
       data: parsedData.data,
       label: `${name} ${parsedData.y.max}`,
       borderColor: `#${Math.floor(Math.random() * 16777215).toString(16)}`
@@ -148,37 +183,36 @@ const parseFormData = (formData: ChartFormData) => {
       firstMax.value = parsedData.y.max;
     }
 
-    mainChartOptions.value.scales.x.min = parsedData.x.min;
+    chartsData.mainChart.options.scales!.x!.min = parsedData.x.min;
 
-    const additional = presetsExecuters[formData.preset](parsedData, name, datasetIndex, ...Object.values(formData.presetData));
-    linesList.value.push({
-      name,
-      additional: additional.text,
-    });
+    presetsExecuters[formData.preset](parsedData, name, datasetIndex, ...Object.values(formData.presetData));
   });
 
-  mainChartYName.value = formData.yName;
+  chartsData.mainChart.options.scales!.y!.title!.text = formData.yName;
 };
 
 const deleteLine = (name: string, itemInd: number) => {
-  const chartIndex = getChartIndexByName(mainChartData.value, name);
+  const chartIndex = getChartIndexByName(chartsData.mainChart.data, name);
   linesList.value.splice(itemInd, 1);
-  mainChartData.value.datasets.splice(chartIndex, 1);
+  chartsData.mainChart.data.datasets.splice(chartIndex, 1);
 
-  if(additionalChartData.value.datasets[0].data.length){
+  if(chartsData.additionalChart.data.datasets[0].data.length){
     // chartjs bug
-    additionalChartData.value.datasets[0].data = additionalChartData.value.datasets[0].data.filter((_, ind) => ind !== itemInd - 1);
-    additionalChartData.value.labels = additionalChartData.value.labels?.filter((_, ind) => ind !== itemInd - 1);
+    chartsData.additionalChart.data.datasets[0].data = chartsData.additionalChart.data.datasets[0].data
+      .filter((_: unknown, ind: number) => ind !== itemInd - 1);
+    chartsData.additionalChart.data.labels = chartsData.additionalChart.data.labels?.filter((_, ind) => ind !== itemInd - 1);
   }
 };
 
 const clear = () => {
-  mainChartData.value.datasets = [];
-  mainChartOptions.value = {  scales: { x: { min: 0 }, y: { min: 0 } } };
+  chartsData.mainChart.data.datasets = [];
+  chartsData.additionalChart.data.datasets = [{
+    data: [],
+    borderColor: getRandomColor()
+  }];
   linesList.value = [];
-  mainChartYName.value = '';
+  chartsData.mainChart.options.scales!.y!.title!.text = '';
 };
-
 
 const download = () => {
   const canvases = document.querySelectorAll('canvas');
@@ -186,6 +220,7 @@ const download = () => {
   canvases.forEach((c) => {
     canvasesImages.push(c.toDataURL('image/jpeg', 1.0));
   });
+
   const pdf = new jsPDF('landscape');
   canvasesImages.forEach((cI: string, cInd: number) => {
     pdf.addImage(cI, 'JPEG', 5, 100*cInd, 150, 100);

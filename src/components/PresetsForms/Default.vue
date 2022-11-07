@@ -85,8 +85,8 @@ const handleFiles = (e: Event) => {
     if (!file.type.includes('text')) { return; }
 
     const reader = new FileReader();
-    reader.addEventListener('loadend', (e: any) => {
-      if (e.target.result) {
+    reader.addEventListener('loadend', (e: ProgressEvent<FileReader>) => {
+      if (e.target?.result && typeof e.target.result === 'string') {
         unparsedData.value.push(e.target.result);
       }
     });

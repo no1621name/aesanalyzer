@@ -9,6 +9,19 @@ declare module '*.vue' {
 
 declare global {
   type BtnVariant = 'success' | 'danger' | 'fullscreen' | 'default';
+  type InputType = 'files' | 'textarea';
+
+  type Preset = 'default' | 'abs';
+  type PresetsTemplates = Record<Preset, string>;
+  type PresetsExecuters = Record<Preset, (info: ChartInfo, name: string, datasetIndex: number, ...arg) => void>;
+
+  type ChartsData = Record<string, {
+    data: {
+      labels: string[],
+      datasets: ChartDataset[]
+    },
+    options: ChartOptions<'line'> & { pointRadius?: number },
+  }>;
 
   interface Coordinates {
     x: number;
@@ -31,11 +44,6 @@ declare global {
     additional?: string | number;
     name: string;
   }
-
-  type Preset = 'default' | 'abs';
-  type PresetsTemplates = Record<Preset, string>;
-  type PresetsExecuters = Record<Preset, (...arg) => { val: number, text: string }>;
-  type InputType = 'files' | 'textarea';
 
   interface ChartFormData {
     unparsedData: string[];

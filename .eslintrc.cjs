@@ -17,6 +17,14 @@ module.exports = {
     'vue',
     '@typescript-eslint'
   ],
+  overrides: [
+    {
+      files: ['*.vue'],
+      rules: {
+        'no-undef': 'off',
+      },
+    },
+  ],
   rules: {
     indent: [
       'error',
@@ -31,14 +39,7 @@ module.exports = {
       'always'
     ],
     'vue/multi-word-component-names': 'off',
-    'quote-props': ['error', 'as-needed']
+    'quote-props': ['error', 'as-needed'],
+    '@typescript-eslint/no-non-null-assertion': 'off'
   },
-  overrides: [
-    {
-      files: ['*.vue'],
-      rules: {
-        'no-undef': 'off',
-      },
-    },
-  ],
 };

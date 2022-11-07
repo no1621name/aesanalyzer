@@ -46,7 +46,6 @@ const props = withDefaults(defineProps<{
   datasetIdKey?: string,
   width?: number
   height?: number,
-  yName?: string,
   options?: ChartOptions,
   data?: ChartData,
 }>(), {
@@ -67,7 +66,7 @@ const bgColor = {
   }
 };
 
-const { yName, options, data } = toRefs(props);
+const { options, data } = toRefs(props);
 
 const config = computed<ChartOptions>(() => {
   return merge<[ChartOptions, ChartOptions]>({
@@ -96,7 +95,6 @@ const config = computed<ChartOptions>(() => {
         type: 'linear',
         title: {
           display: true,
-          text: 'Wavelength'
         },
         min: 0,
       },
@@ -104,7 +102,6 @@ const config = computed<ChartOptions>(() => {
         type: 'linear',
         title: {
           display: true,
-          text: yName?.value || 'y'
         },
       }
     }
