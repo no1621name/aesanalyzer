@@ -1,4 +1,5 @@
-import { ChartData } from 'chart.js';
+import { ChartData, ChartDataset, ScatterDataPoint } from 'chart.js';
+import regression, { DataPoint, Result } from 'regression';
 
 export const getRandomColor = () => `#${Math.floor(Math.random() * 16777215).toString(16)}`;
 
@@ -7,15 +8,15 @@ export const getChartIndexByName = (chartData: ChartData, name: string) => {
 };
 
 export const parser = (unp: string): ChartInfo => {
-  const chartData: Coordinates[] = unp.trim().split('\n')
-    .map<Coordinates>((subS: string) => subS.split(' ')
-      .reduce((obj: Coordinates, curr: string, currInd: number) => {
+  const chartData: ScatterDataPoint[] = unp.trim().split('\n')
+    .map<ScatterDataPoint>((subS: string) => subS.split(' ')
+      .reduce((obj: ScatterDataPoint, curr: string, currInd: number) => {
         Object.defineProperty(obj, currInd === 0 ? 'x' : 'y', {
           value: Number(curr),
           enumerable: true,
         });
         return obj;
-      }, {} as Coordinates)
+      }, {} as ScatterDataPoint)
     );
 
   const xValues = chartData.map(d => d.x);
@@ -32,4 +33,20 @@ export const parser = (unp: string): ChartInfo => {
       min: Math.min(...yValues)
     }
   };
+};
+
+export const formula = (type: FormulaType = 'linear', dataset: ChartDataset<'line', (ScatterDataPoint | number)[]>): Result => {
+  const serializedData: ReadonlyArray<DataPoint> = dataset.data.map((d: ScatterDataPoint | number) => {
+    if(typeof d === 'number') {
+      throw new Error();
+    }
+    return [d.x, d.y];
+  });
+  return regression[type](serializedData, {
+    precision: 3
+  });
+};
+
+export const getSetValueByIndex = <T, > (set: Set<T>, index: number) => {
+  return [...set][index];
 };

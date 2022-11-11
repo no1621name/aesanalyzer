@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen flex flex-row flex-wrap items-start justify-around p-4">
+  <main class="flex flex-row flex-wrap items-start justify-around p-4">
     <div class="w-full md:w-1/3">
       <h1 class="fs-">AESanalyzer</h1>
       <label for="selectChartFormPreset">
@@ -10,6 +10,10 @@
         </select>
       </label>
       <component :is="presets[selectedPreset]" :disabled="!!linesList.length" @submit="parseFormData"/>
+      <span v-if="formulaData.r2" class="block my-2">Titration formula:
+        <span class="font-semibold italic">{{ formulaData.string }}</span>,
+        R^2: <span class="font-semibold italic">{{ formulaData.r2 }}</span>
+      </span>
       <LinesList :list="linesList" @deleteLine="deleteLine"/>
     </div>
     <div class="flex flex-col justify-between items-center w-full h-screen mt-4 md:mt-0 md:w-5/12 md:h-full">
@@ -19,7 +23,7 @@
           :options="chartsData.mainChart.options"
         />
         <LineChart
-          v-if="selectedPreset !== 'default' && chartsData.additionalChart.data.datasets[0].data.length"
+          v-if="selectedPreset !== 'default' && chartsData.additionalChart.data.datasets[0].data.length > 1"
           class="mt-3"
           :data="chartsData.additionalChart.data"
           :options="chartsData.additionalChart.options"
@@ -34,19 +38,22 @@
         </Btn>
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script lang="ts" setup>
-import { ComponentCustomProps, reactive, ref } from 'vue';
+import { ComponentCustomProps, reactive, ref, watch } from 'vue';
 import { jsPDF } from 'jspdf';
-import { parser, getChartIndexByName, getRandomColor } from '../utils';
+import { parser, getChartIndexByName, getRandomColor, formula, getSetValueByIndex } from '../utils';
+import { DataPoint } from 'regression';
+import { ScatterDataPoint, TooltipItem } from 'chart.js';
 
 import Btn from './UI/Btn.vue';
 import DefaultPreset from './PresetsForms/Default.vue';
 import AbsPreset from './PresetsForms/Abs.vue';
 import LineChart from './Charts/LineChart.vue';
 import LinesList from './LinesList.vue';
+import { computed } from 'vue';
 
 const selectedPreset = ref<Preset>('default');
 const presets: Record<Preset, ComponentCustomProps> = {
@@ -56,6 +63,7 @@ const presets: Record<Preset, ComponentCustomProps> = {
 
 const chartsData = reactive<ChartsData>({
   mainChart: {
+    raw: new Set(),
     data: {
       labels: [],
       datasets: []
@@ -79,8 +87,8 @@ const chartsData = reactive<ChartsData>({
         tooltip: {
           usePointStyle: true,
           callbacks: {
-            label: (context: { dataset: { label: string }, parsed: { y: number, x: number } }) => {
-              return `${context.dataset.label.split(' ')[0]}: ${context.parsed.x}, ${context.parsed.y}`;
+            label: (context: TooltipItem<'line'>) => {
+              return `${context.dataset.label?.split(' ')[0]}: ${context.parsed.x}, ${context.parsed.y}`;
             }
           }
         }
@@ -88,6 +96,7 @@ const chartsData = reactive<ChartsData>({
     }
   },
   additionalChart: {
+    raw: new Set(),
     data: {
       labels: [],
       datasets: [
@@ -101,7 +110,7 @@ const chartsData = reactive<ChartsData>({
       pointRadius: 3,
       scales: {
         x: {
-          type: 'category',
+          type: 'linear',
           title: {
             text: ''
           }
@@ -115,14 +124,14 @@ const chartsData = reactive<ChartsData>({
       },
       plugins: {
         legend: {
-          display: false,
+          display: true,
         },
         tooltip: {
           usePointStyle: true,
           callbacks: {
-            label: (context: { parsed: { y: number } }) => {
-              return `${context.parsed.y}`;
-            }
+            label: (context: TooltipItem<'line'>) =>
+              `${context.chart.data.labels?.[context.dataIndex] || 'polynomial projection'}: ${context.parsed.x}, ${context.parsed.y}`,
+
           }
         }
       },
@@ -130,8 +139,38 @@ const chartsData = reactive<ChartsData>({
   },
 });
 
+const formulaType = ref<FormulaType>('linear');
 const linesList = ref<LinesListItem[]>([]);
-const firstMax = ref(0);
+const firstMax = computed(() => {
+  try {
+    return JSON.parse(getSetValueByIndex(chartsData.mainChart.raw, 0)).y.max;
+  } catch {
+    return 0;
+  }
+});
+
+const formulaData = computed(() => {
+  if(typeof chartsData.additionalChart.data.datasets[0].data[0] === 'object' ){
+    const res = formula(formulaType.value, chartsData.additionalChart.data.datasets[0]);
+    if(!chartsData.additionalChart.data.datasets[1]){
+      // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+      chartsData.additionalChart.data.datasets.push({
+        label: 'Formula graph',
+        data: res.points.map(([x,y]: DataPoint) => ({ x, y })),
+        borderColor: 'red'
+      });
+    }
+    return res;
+  }
+  return {
+    string: '',
+    points: [],
+    r2: 0,
+    predict: (x: number): DataPoint => [x,x],
+  };
+}, {
+  onTrigger: () => 'polynomial',
+});
 
 const presetsExecuters: PresetsExecuters = {
   default: (_: ChartInfo, name: string) => {
@@ -139,79 +178,141 @@ const presetsExecuters: PresetsExecuters = {
       name,
     });
   },
-  abs: (info: ChartInfo, name: string, datasetIndex: number, e: number, eInpType: string, b: number) => {
-    const lineItem: LinesListItem = { name };
-    let xAxisName = '';
+  abs: (raw: Set<string>) => {
+    chartsData.additionalChart.data.labels = [];
+    chartsData.additionalChart.data.datasets[0].data = [];
+    linesList.value = [];
+    [...raw].forEach((rawData, index) => {
+      const { name, thickness: b, coef: e, y, coefInputType: eInpType } = JSON.parse(rawData);
+      const lineItem: LinesListItem = { name };
+      const ratio = firstMax.value/y.max;
+      const c = +(y.max / ((eInpType === 'default' ? e : 10**e)  * b)).toFixed(10);
+      const prevMax = chartsData.additionalChart.options.scales!.x!.min;
 
-    if(e && b) {
-      lineItem.additional = `C = ${+(info.y.max / ((eInpType === 'default' ? e : 10**e)  * b)).toFixed(10)}`;
-      xAxisName = 'Concentration';
-    }
+      chartsData.additionalChart.options.scales!.x!.min = (prevMax && prevMax < c) ? prevMax : c;
 
-    const ratio = firstMax.value/info.y.max;
+      if(!index) {
+        if(c) {
+          chartsData.additionalChart.options.scales!.x!.title!.text = 'Concentration';
+          chartsData.additionalChart.options.scales!.x!.type = 'linear';
+          chartsData.additionalChart.options.scales!.x!.min = c;
+        } else {
+          chartsData.additionalChart.options.scales!.x!.type = 'category';
+          chartsData.additionalChart.options.scales!.x!.title!.text = '';
+        }
 
-    if(datasetIndex) {
-      //chartjs bug
-      chartsData.additionalChart.data.labels = [...(chartsData.additionalChart.data.labels || []), name];
-      chartsData.additionalChart.data.datasets[0].data = [...chartsData.additionalChart.data.datasets[0].data, ratio];
-    } else {
-      // chartjs' types are a little um.. special~
-      chartsData.additionalChart.options.scales!.x!.title!.text = xAxisName;
-      chartsData.additionalChart.options.scales!.y!.title!.text = 'Ⅰ0/Ⅰi';
-    }
+        chartsData.additionalChart.options.scales!.y!.title!.text = 'Ⅰ0/Ⅰi';
+        chartsData.additionalChart.data.datasets[0].label = 'Titration';
+      }
 
-    linesList.value.push(lineItem);
+      if(c) {
+        const dataPoint =  { x: c, y: ratio };
+        lineItem.additional = {
+          value: dataPoint,
+          text: `C = ${c}`
+        };
+
+        chartsData.additionalChart.data.datasets[0].data = [...chartsData.additionalChart.data.datasets[0].data, dataPoint];
+
+        if(chartsData.additionalChart.data.datasets[1]) {
+          chartsData.additionalChart.data.datasets[1].data = [];
+          chartsData.additionalChart.data.datasets[1].data.push(...(formulaData.value.points as unknown as number[]));
+        }
+      } else {
+        chartsData.additionalChart.data.datasets[0].data = [...chartsData.additionalChart.data.datasets[0].data, ratio];
+      }
+
+      chartsData.additionalChart.data.labels = [...chartsData.additionalChart.data.labels, name];
+
+      linesList.value.push(lineItem);
+    });
   },
 };
+
+watch(chartsData.additionalChart.raw, () => {
+  if(chartsData.additionalChart.preset) {
+    presetsExecuters[chartsData.additionalChart.preset](
+      [...chartsData.additionalChart.raw]
+        .map((v) => JSON.parse(v))
+        .sort((d, b) =>  d.y.max - b.y.max)
+        .map((v) => JSON.stringify(v))
+    );
+  }
+});
 
 const parseFormData = (formData: ChartFormData) => {
   if(!formData.unparsedData.length) {
     return;
   }
 
+  chartsData.additionalChart.preset = formData.preset;
+
   formData.unparsedData.forEach((unp: string) => {
     const parsedData = parser(unp);
     const name = `Ⅰ${chartsData.mainChart.data.datasets.length}`;
 
-    const datasetIndex = chartsData.mainChart.data.datasets.push({
+    chartsData.mainChart.options.scales!.x!.min = parsedData.x.min;
+    chartsData.mainChart.raw.add(JSON.stringify(parsedData));
+    chartsData.mainChart.data.datasets.push({
       data: parsedData.data,
       label: `${name} ${parsedData.y.max}`,
       borderColor: `#${Math.floor(Math.random() * 16777215).toString(16)}`
-    }) - 1;
+    });
 
-    if(!datasetIndex) {
-      firstMax.value = parsedData.y.max;
+    if(formData.preset !== 'default'){
+      chartsData.additionalChart.raw.add(JSON.stringify({
+        ...parsedData,
+        ...formData.presetData,
+        name,
+      }));
+      formulaType.value = formData.presetData.formulaType || 'linear';
+    } else {
+      presetsExecuters.default(parsedData, name);
     }
-
-    chartsData.mainChart.options.scales!.x!.min = parsedData.x.min;
-
-    presetsExecuters[formData.preset](parsedData, name, datasetIndex, ...Object.values(formData.presetData));
   });
 
   chartsData.mainChart.options.scales!.y!.title!.text = formData.yName;
 };
 
 const deleteLine = (name: string, itemInd: number) => {
+  const item = linesList.value.splice(itemInd, 1)[0];
   const chartIndex = getChartIndexByName(chartsData.mainChart.data, name);
-  linesList.value.splice(itemInd, 1);
   chartsData.mainChart.data.datasets.splice(chartIndex, 1);
 
   if(chartsData.additionalChart.data.datasets[0].data.length){
-    // chartjs bug
-    chartsData.additionalChart.data.datasets[0].data = chartsData.additionalChart.data.datasets[0].data
-      .filter((_: unknown, ind: number) => ind !== itemInd - 1);
-    chartsData.additionalChart.data.labels = chartsData.additionalChart.data.labels?.filter((_, ind) => ind !== itemInd - 1);
+    const additionalIndex = chartsData.additionalChart.data.datasets[0].data
+      .findIndex((v: ScatterDataPoint | number) => {
+        if(typeof v === 'object') {
+          return v.x === item.additional?.value.x && v.y === item.additional?.value.y;
+        }
+      });
+    chartsData.additionalChart.data.datasets[0].data = chartsData.additionalChart.data.datasets[0].data.filter((_, ind) => ind !== additionalIndex);
+    if(chartsData.additionalChart.data.datasets[1]){
+      chartsData.additionalChart.data.datasets[1].data = chartsData.additionalChart.data.datasets[1].data.filter((_, ind) => ind !== additionalIndex);
+    }
+    chartsData.additionalChart.data.labels = chartsData.additionalChart.data.labels?.filter((l) => l !== item.name);
+    const firstItem = chartsData.additionalChart.data.datasets[0].data[0];
+    chartsData.additionalChart.options.scales!.x!.min = typeof firstItem === 'object' ? firstItem.x : 0;
+  }
+
+  if(!linesList.value.length) {
+    clear();
   }
 };
 
 const clear = () => {
+  linesList.value = [];
+
   chartsData.mainChart.data.datasets = [];
+  chartsData.mainChart.raw.clear();
+  chartsData.mainChart.options.scales!.y!.title!.text = '';
+
+  chartsData.additionalChart.raw.clear();
+  chartsData.additionalChart.data.labels = [];
   chartsData.additionalChart.data.datasets = [{
     data: [],
     borderColor: getRandomColor()
   }];
-  linesList.value = [];
-  chartsData.mainChart.options.scales!.y!.title!.text = '';
 };
 
 const download = () => {
@@ -223,8 +324,8 @@ const download = () => {
 
   const pdf = new jsPDF('landscape');
   canvasesImages.forEach((cI: string, cInd: number) => {
-    pdf.addImage(cI, 'JPEG', 5, 100*cInd, 150, 100);
+    pdf.addImage(cI, 'JPEG', 5, 100*cInd, 170, 100);
   });
-  pdf.save('charts.pdf');
+  pdf.save('AESanalyzer-charts.pdf');
 };
 </script>

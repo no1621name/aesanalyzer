@@ -1,5 +1,5 @@
 <template>
-  <div class="relative border border-black h-[400px] default-chart">
+  <div class="relative border border-black h-[400px] default-chart dark:border-gray-200">
     <Btn
       @click="$event.target.parentElement.classList.toggle('fullscreen')"
       variant="fullscreen"
@@ -58,7 +58,7 @@ const props = withDefaults(defineProps<{
 
 const bgColor = {
   id: 'bgColor',
-  beforeDraw: (chart: any, _: unknown, options: { backgroundColor: string }) => {
+  beforeDraw: (chart: any , _: unknown, options: { backgroundColor: string }) => {
     const { ctx, width, height } = chart;
     ctx.fillStyle = options.backgroundColor;
     ctx.fillRect(0, 0, width, height);

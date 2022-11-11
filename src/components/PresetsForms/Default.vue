@@ -14,12 +14,14 @@
         substances
       });
       values = '';
-      hasSent = true;
       unparsedData = [];
     }"
   >
-
-    <SelectedInput first-type="files" second-type="textarea" v-model="inputType">
+    <SelectedInput
+      first-type="files"
+      second-type="textarea"
+      v-model="inputType"
+    >
       <template #first>
         <input
           type="file"
@@ -38,12 +40,12 @@
     </SelectedInput>
     <input
       v-model="yName"
-      :disabled="hasSent"
+      :disabled="disabled"
       type="text"
       placeholder="Enter Y axis name"
       required
     >
-    <InputGroup :values="substances" :disabled="hasSent">Substances:</InputGroup>
+    <InputGroup :values="substances" :disabled="disabled">Substances:</InputGroup>
     <slot />
     <Btn class="mt-1.5" type="submit">
       Submit
@@ -52,26 +54,24 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs } from 'vue';
+import { ref,  } from 'vue';
 
 import InputGroup from '../UI/InputGroup.vue';
 import SelectedInput from '../UI/SelectedInput.vue';
 import Btn from '../UI/Btn.vue';
 
 defineEmits(['submit']);
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   disabled?: boolean
 }>(), {
   disabled: false
 });
 
-const { disabled } = toRefs(props);
 
 const inputType = ref('');
 const unparsedData = ref<string[]>([]);
 const values = ref('');
 const yName = ref('');
-const hasSent = ref(disabled.value);
 const substances = ref(['']);
 
 const handleFiles = (e: Event) => {

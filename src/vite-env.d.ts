@@ -1,5 +1,6 @@
 /* eslint-disable */
 /// <reference types="vite/client" />
+import { ChartDataset, ChartOptions, Chart, ScatterDataPoint } from 'chart.js';
 
 declare module '*.vue' {
   import type { DefineComponent } from 'vue';
@@ -10,43 +11,44 @@ declare module '*.vue' {
 declare global {
   type BtnVariant = 'success' | 'danger' | 'fullscreen' | 'default';
   type InputType = 'files' | 'textarea';
+  type FormulaType = 'linear' | 'polynomial';
 
   type Preset = 'default' | 'abs';
   type PresetsTemplates = Record<Preset, string>;
-  type PresetsExecuters = Record<Preset, (info: ChartInfo, name: string, datasetIndex: number, ...arg) => void>;
+  // type PresetsExecuters = Record<Preset, (info: ChartInfo, name: string, datasetIndex: number, ...arg) => void>;
+  type PresetsExecuters = Record<Preset, any>;
 
   type ChartsData = Record<string, {
     data: {
-      labels: string[],
-      datasets: ChartDataset[]
-    },
-    options: ChartOptions<'line'> & { pointRadius?: number },
+      labels: Array<string>;
+      datasets: Array<ChartDataset<'line', (ScatterDataPoint | number)[]>>
+    };
+    options: ChartOptions<'line'> & { pointRadius?: number };
+    raw: Set<string>;
+    preset?: Preset;
   }>;
 
-  interface Coordinates {
-    x: number;
-    y: number;
-  }
-
   interface MinMax {
-    min: number,
-    max: number
+    min: number;
+    max: number;
   }
 
   interface ChartInfo {
-    data: Coordinates[];
+    data: Array<ScatterDataPoint>;
     x: MinMax;
     y: MinMax;
   }
 
-
   interface LinesListItem {
-    additional?: string | number;
+    additional?: {
+      text: string;
+      value: ScatterDataPoint;
+    };
     name: string;
   }
 
   interface ChartFormData {
-    unparsedData: string[];
+    unparsedData: Array<string>;
     inputType: InputType;
     yName: string;
     preset: Preset;

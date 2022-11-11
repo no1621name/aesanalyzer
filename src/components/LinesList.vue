@@ -3,11 +3,11 @@
     <div
       v-for="(line, index) in list"
       :key="index"
-      class="flex flex-col mt-3 items-center border rounded border-gray-500 bg-gray-300 p-2"
+      class="flex flex-col mt-3 items-center border rounded border-gray-500 bg-gray-300 p-2 dark:text-gray-700"
     >
       <h3>{{line.name}}</h3>
       <p v-if="line.additional">
-        {{line.additional}}
+        {{line.additional.text}}
       </p>
       <button
         class="mt-2 btn btn_danger chart-delete__btn"

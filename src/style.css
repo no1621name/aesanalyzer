@@ -4,7 +4,9 @@
 
 @layer components{
   .btn {
-    @apply rounded border border-gray-700 p-1.5 text-gray-700 hover:text-white hover:bg-gray-500 hover:border-gray-500 transition duration-300;
+    @apply rounded border border-gray-700 p-1.5 text-gray-700 hover:text-white
+    hover:bg-gray-500 hover:border-gray-500 transition duration-300 dark:text-gray-200
+    dark:border-gray-200 dark:hover:text-gray-700 dark:hover:bg-white;
   }
   .btn.btn_danger{
     @apply border-red-500 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-500;
@@ -26,9 +28,16 @@
   }
 }
 
+body.dark{
+  @apply text-gray-200 bg-[#2a2b2e];
+}
 
-input, textarea {
-  @apply rounded border border-gray-700 my-1 p-1;
+input, textarea, select {
+  @apply rounded border border-gray-700 my-1 p-1 dark:text-black;
+}
+
+input[type="file"]{
+  @apply  dark:text-white;
 }
 
 input:disabled{
@@ -49,4 +58,9 @@ input::-webkit-inner-spin-button {
 
 textarea{
   @apply max-h-[200px];
+}
+
+h1{
+  font-size: 22px;
+  font-weight: 500;
 }

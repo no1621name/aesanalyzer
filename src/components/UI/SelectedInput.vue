@@ -1,5 +1,5 @@
 <template>
-   <div class="flex justify-between w-full items-center flex-wrap">
+   <div class="flex justify-between w-full items-center flex-wrap mt-1">
     <slot v-if="currType === firstType" name="first" />
     <slot v-else name="second" />
 

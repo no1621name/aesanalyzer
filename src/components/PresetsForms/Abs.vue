@@ -6,26 +6,27 @@
         presetData: {
           coef,
           coefInputType,
-          thickness
+          thickness,
+          formulaType
         }}));
-      hasSent = true;
     }"
     :disabled="disabled"
   >
     <template #default>
-      <!-- remove. build by I0/Ii -->
       <SelectedInput
         first-type="default"
         second-type="logarithm"
         v-model="coefInputType"
+        @update:model-value="coef = undefined"
       >
         <template #first>
           <input
             v-model.number="coef"
             type="number"
             placeholder="Molar extinction coefficient [l/(mol*cm)]"
-            :disabled="hasSent"
+            :disabled="disabled"
             min="0"
+            step="0.00001"
           >
         </template>
         <template #second>
@@ -33,8 +34,9 @@
             v-model.number="coef"
             type="number"
             placeholder="log10 Molar extinction coefficient [l/(mol*cm)]"
-            :disabled="hasSent"
+            :disabled="disabled"
             min="0"
+            step="0.00001"
           >
         </template>
       </SelectedInput>
@@ -42,33 +44,38 @@
         v-model.number="thickness"
         type="number"
         placeholder="Cuvette thickness [cm]"
-        :disabled="hasSent"
+        :disabled="disabled"
         min="0"
       >
+      <label for="selectFormulaType">
+        Formla type:
+        <select id="selectFormulaType" v-model="formulaType" :disabled="disabled">
+          <option value="linear" selected>Linear</option>
+          <option value="polynomial">Polynomial</option>
+        </select>
+      </label>
     </template>
   </DefaultPreset>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs } from 'vue';
+import { ref } from 'vue';
 import merge from 'ts-deepmerge';
 
 import DefaultPreset from './Default.vue';
 import SelectedInput from '../UI/SelectedInput.vue';
 
 defineEmits(['submit']);
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   disabled?: boolean
 }>(), {
   disabled: false
 });
 
-const { disabled } = toRefs(props);
-
 const coef = ref();
 const thickness = ref();
-const hasSent = ref(disabled);
 const coefInputType = ref('default');
+const formulaType = ref<FormulaType>('linear');
 </script>
 
 <style scoped>
