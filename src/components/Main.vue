@@ -10,6 +10,9 @@
         </select>
       </label>
       <component :is="presets[selectedPreset]" :disabled="!!linesList.length" @submit="parseFormData"/>
+      <Btn @click="loadTest" class="mt-3">
+        Load test data
+      </Btn>
       <span v-if="formulaData.r2" class="block my-2">Titration formula:
         <span class="font-semibold italic">{{ formulaData.string }}</span>,
         R^2: <span class="font-semibold italic">{{ formulaData.r2 }}</span>
@@ -213,7 +216,6 @@ const presetsExecuters: PresetsExecuters = {
         };
 
         chartsData.additionalChart.data.datasets[0].data = [...chartsData.additionalChart.data.datasets[0].data, dataPoint];
-
         if(chartsData.additionalChart.data.datasets[1]) {
           chartsData.additionalChart.data.datasets[1].data = [];
           chartsData.additionalChart.data.datasets[1].data.push(...(formulaData.value.points as unknown as number[]));
@@ -327,5 +329,24 @@ const download = () => {
     pdf.addImage(cI, 'JPEG', 5, 100*cInd, 170, 100);
   });
   pdf.save('AESanalyzer-charts.pdf');
+};
+
+const loadTest = async () => {
+  selectedPreset.value = 'abs';
+  await import('../assets/data.js').then((testData) => {
+    parseFormData({
+      unparsedData: testData.default as unknown as string[],
+      inputType: 'textarea',
+      yName: 'test',
+      preset: 'abs',
+      substances: ['t1', 't2'],
+      presetData: {
+        coef: 1,
+        coefInputType: 'default',
+        thickness: 1,
+        formulaType: 'polynomial'
+      },
+    });
+  });
 };
 </script>
