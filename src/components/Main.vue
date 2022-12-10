@@ -1,7 +1,10 @@
 <template>
   <main class="flex flex-row flex-wrap items-start justify-around p-4">
     <div class="w-full md:w-1/3">
-      <h1 class="fs-">AESanalyzer</h1>
+      <h1 class="flex justify-between items-center mb-2">
+        AESanalyzer
+        <ThemeToggler />
+      </h1>
       <label for="selectChartFormPreset">
         Select chart preset:
         <select id="selectChartFormPreset" v-model="selectedPreset" @change="clear">
@@ -45,18 +48,20 @@
 </template>
 
 <script lang="ts" setup>
-import { ComponentCustomProps, reactive, ref, watch } from 'vue';
+import { ComponentCustomProps, reactive, ref, watch, computed } from 'vue';
 import { jsPDF } from 'jspdf';
 import { parser, getChartIndexByName, getRandomColor, formula, getSetValueByIndex } from '../utils';
 import { DataPoint } from 'regression';
 import { ScatterDataPoint, TooltipItem } from 'chart.js';
+import {  } from 'vue';
 
 import Btn from './UI/Btn.vue';
 import DefaultPreset from './PresetsForms/Default.vue';
 import AbsPreset from './PresetsForms/Abs.vue';
 import LineChart from './Charts/LineChart.vue';
 import LinesList from './LinesList.vue';
-import { computed } from 'vue';
+import ThemeToggler from './UI/ThemeToggler.vue';
+
 
 const selectedPreset = ref<Preset>('default');
 const presets: Record<Preset, ComponentCustomProps> = {
@@ -335,7 +340,7 @@ const loadTest = async () => {
   selectedPreset.value = 'abs';
   await import('../assets/data.js').then((testData) => {
     parseFormData({
-      unparsedData: testData.default as unknown as string[],
+      unparsedData: testData.default,
       inputType: 'textarea',
       yName: 'test',
       preset: 'abs',
@@ -348,5 +353,6 @@ const loadTest = async () => {
       },
     });
   });
+  (document.querySelector('#selectFormulaType') as HTMLSelectElement).value = 'polynomial';
 };
 </script>

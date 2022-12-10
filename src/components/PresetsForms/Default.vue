@@ -1,21 +1,7 @@
 <template>
   <form
     class="flex flex-col items-start"
-    @submit.prevent="() => {
-      if(inputType === 'textarea') {
-        unparsedData = [values];
-      }
-      $emit('submit', {
-        unparsedData,
-        yName,
-        inputType,
-        preset: 'default',
-        presetData: {},
-        substances
-      });
-      values = '';
-      unparsedData = [];
-    }"
+    @submit.prevent="submitForm"
   >
     <SelectedInput
       first-type="files"
@@ -54,25 +40,40 @@
 </template>
 
 <script lang="ts" setup>
-import { ref,  } from 'vue';
+import { ref } from 'vue';
 
 import InputGroup from '../UI/InputGroup.vue';
 import SelectedInput from '../UI/SelectedInput.vue';
 import Btn from '../UI/Btn.vue';
 
-defineEmits(['submit']);
+const emit = defineEmits(['submit']);
 withDefaults(defineProps<{
   disabled?: boolean
 }>(), {
   disabled: false
 });
 
-
 const inputType = ref('');
 const unparsedData = ref<string[]>([]);
 const values = ref('');
 const yName = ref('');
 const substances = ref(['']);
+
+const submitForm = () => {
+  if(inputType.value === 'textarea') {
+    unparsedData.value = [values.value];
+  }
+  emit('submit', {
+    unparsedData,
+    yName,
+    inputType,
+    preset: 'default',
+    presetData: {},
+    substances
+  });
+  values.value = '';
+  unparsedData.value = [];
+};
 
 const handleFiles = (e: Event) => {
   const target = e.target as HTMLInputElement;

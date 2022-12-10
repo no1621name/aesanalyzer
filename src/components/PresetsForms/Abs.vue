@@ -1,15 +1,6 @@
 <template>
   <DefaultPreset
-    @submit="(formData: ChartFormData) => {
-      $emit('submit', merge(formData, {
-        preset: 'abs',
-        presetData: {
-          coef,
-          coefInputType,
-          thickness,
-          formulaType
-        }}));
-    }"
+    @submit="submitForm"
     :disabled="disabled"
   >
     <template #default>
@@ -65,7 +56,7 @@ import merge from 'ts-deepmerge';
 import DefaultPreset from './Default.vue';
 import SelectedInput from '../UI/SelectedInput.vue';
 
-defineEmits(['submit']);
+const emit = defineEmits(['submit']);
 withDefaults(defineProps<{
   disabled?: boolean
 }>(), {
@@ -76,6 +67,17 @@ const coef = ref();
 const thickness = ref();
 const coefInputType = ref('default');
 const formulaType = ref<FormulaType>('linear');
+
+const submitForm = (formData: ChartFormData) => {
+  emit('submit', merge(formData, {
+    preset: 'abs',
+    presetData: {
+      coef,
+      coefInputType,
+      thickness,
+      formulaType
+    }}));
+};
 </script>
 
 <style scoped>

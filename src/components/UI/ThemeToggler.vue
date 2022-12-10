@@ -1,12 +1,10 @@
 <template>
-  <footer class="p-2">
-    <Btn @click="toggleTheme">Toggle theme</Btn>
-  </footer>
+  <Btn @click="toggleTheme" class="text-sm">Toggle theme</Btn>
 </template>
 
 <script lang="ts" setup>
 import { onMounted } from 'vue';
-import Btn from './UI/Btn.vue';
+import Btn from './Btn.vue';
 
 const toggleTheme = () => {
   document.body.classList.toggle('dark');
